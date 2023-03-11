@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:my_vision/object/YoloV5Response.dart';
+import 'package:my_vision/widget/bounding_boxes.dart';
 
 class CameraPage extends StatefulWidget {
   final String url;
@@ -19,6 +21,8 @@ class _CameraPageState extends State<CameraPage> {
   late CameraController _cameraController;
   List<YoloV5Response> _data = [];
 
+  bool _isPredicting = true;    // Default predicting behavior
+
   Future _initCamera(CameraDescription cameraDescription) async {
     _cameraController = CameraController(
         cameraDescription, ResolutionPreset.max,
@@ -32,6 +36,12 @@ class _CameraPageState extends State<CameraPage> {
     } on CameraException catch (e) {
       debugPrint("Camera Error: $e");
     }
+  }
+
+  void _togglePrediction() {
+    setState(() {
+      _isPredicting = !_isPredicting;
+    });
   }
 
   Future<void> _predict() async {
@@ -73,6 +83,17 @@ class _CameraPageState extends State<CameraPage> {
       print("ERROR: $e");
     } finally {
       _printData();
+
+      // If still predicting, then predict the next image
+      if (_isPredicting) {
+        Timer.run(() {
+          _predict();
+        });
+      } else {
+        setState(() {
+          _data = [];
+        });
+      }
     }
   }
 
@@ -85,10 +106,28 @@ class _CameraPageState extends State<CameraPage> {
     print("===================================================");
   }
 
+  List<Widget> _generateBoundingBoxes() {
+    List<BoundingBox> boundingBoxes = [];
+
+    for (YoloV5Response data in _data) {
+      BoundingBox boundingBox = BoundingBox(
+          xmax: data.xmax!,
+          xmin: data.xmin!,
+          ymax: data.ymax!,
+          ymin: data.ymin!,
+          name: data.name!,
+          confidence: data.confidence!);
+      boundingBoxes.add(boundingBox);
+    }
+
+    return boundingBoxes;
+  }
+
   @override
   void initState() {
     super.initState();
     _initCamera(widget.cameras![0]);
+    _predict();
   }
 
   @override
@@ -113,6 +152,12 @@ class _CameraPageState extends State<CameraPage> {
                   ),
                 )
               : const Center(child: CircularProgressIndicator()),
+          Stack(
+            children: _generateBoundingBoxes(),
+          ),
+          ElevatedButton(
+              onPressed: () => {_togglePrediction(), _predict()},
+              child: Text("Toggle Detection"))
         ],
       )),
     );

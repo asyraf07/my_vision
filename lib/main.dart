@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_vision/widget/camera_page.dart';
 
-const DEBUG = true;
-
 const TextStyle myTextStyle = TextStyle(
   fontFamily: "sans-serif",
   fontSize: 40,
